@@ -167,8 +167,9 @@ public:
         KawaseDualFilter,
         KawaseDualFilterV2,
         KawaseDarkmoon,
+        Glass,
 
-        ftl_last = KawaseDarkmoon
+        ftl_last = Glass
     };
 
     static std::unique_ptr<RenderEngine> create(const RenderEngineCreationArgs& args);

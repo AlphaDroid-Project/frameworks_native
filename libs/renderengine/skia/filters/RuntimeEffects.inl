@@ -31,6 +31,8 @@ X(BoxShadowEffect,                                          20)
 X(KawaseDarkmoon_QuarterResDownSampleBlurEffect,            21)
 X(KawaseDarkmoon_HalfResDownSampleBlurEffect,               22)
 X(KawaseDarkmoon_UpSampleBlurEffect,                        23)
+X(GlassBlurFilter_FinalUpSampleEffect,                      24)
+X(GlassBlurFilter_UpSampleEffect,                           25)
 
  // IMPORTANT: Do not change the order of existing effects in this list.
  //
