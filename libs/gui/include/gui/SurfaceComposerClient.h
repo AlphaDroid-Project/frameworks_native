@@ -20,9 +20,11 @@
 #include <sys/types.h>
 
 #include <set>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include <android-base/result.h>
 #include <binder/IBinder.h>
@@ -259,6 +261,13 @@ public:
      * Requires the ACCESS_SURFACE_FLINGER permission.
      */
     static bool getProtectedContentSupport();
+
+    /**
+     * Returns supported RenderEngine blur algorithms as parallel lists of
+     * labels and property tokens.
+     */
+    static void getSupportedBlurAlgorithms(std::vector<std::string>* outEnumLabels,
+                                           std::vector<std::string>* outPropertyTokens);
 
     /**
      * Gets the context priority of surface flinger's render engine.

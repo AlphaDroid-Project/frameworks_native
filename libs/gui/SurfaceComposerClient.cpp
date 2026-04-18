@@ -3007,6 +3007,22 @@ bool SurfaceComposerClient::getProtectedContentSupport() {
     return supported;
 }
 
+void SurfaceComposerClient::getSupportedBlurAlgorithms(std::vector<std::string>* outEnumLabels,
+                                                       std::vector<std::string>* outPropertyTokens) {
+    if (!outEnumLabels || !outPropertyTokens) {
+        return;
+    }
+    outEnumLabels->clear();
+    outPropertyTokens->clear();
+    const binder::Status status =
+            ComposerServiceAIDL::getComposerService()->getSupportedBlurAlgorithms(outEnumLabels,
+                                                                                  outPropertyTokens);
+    if (!status.isOk()) {
+        outEnumLabels->clear();
+        outPropertyTokens->clear();
+    }
+}
+
 status_t SurfaceComposerClient::clearAnimationFrameStats() {
     binder::Status status = ComposerServiceAIDL::getComposerService()->clearAnimationFrameStats();
     return statusTFromBinderStatus(status);

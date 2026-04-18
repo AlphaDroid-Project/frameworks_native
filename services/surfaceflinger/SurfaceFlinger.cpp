@@ -64,6 +64,7 @@
 #include <fmt/format.h>
 #include <ftl/algorithm.h>
 #include <ftl/concat.h>
+#include <ftl/enum.h>
 #include <ftl/fake_guard.h>
 #include <ftl/future.h>
 #include <ftl/match.h>
@@ -917,6 +918,26 @@ void chooseRenderEngineType(renderengine::RenderEngineCreationArgs::Builder& bui
     }
 }
 
+/** Property token for each non-None blur algorithm; must match fillSupportedBlurAlgorithmLists(). */
+static const char* blurAlgorithmToPropertyToken(renderengine::RenderEngine::BlurAlgorithm a) {
+    using BA = renderengine::RenderEngine::BlurAlgorithm;
+    switch (a) {
+        case BA::Gaussian:
+            return "gaussian";
+        case BA::Kawase:
+            return "kawase";
+        case BA::KawaseDualFilter:
+            return "kawase2";
+        case BA::KawaseDualFilterV2:
+            return "kawase2_fix_aliasing";
+        case BA::KawaseDarkmoon:
+            return "kawase_darkmoon";
+        case BA::None:
+        default:
+            return nullptr;
+    }
+}
+
 /**
  * Choose a suggested blurring algorithm if supportsBlur is true. By default Kawase will be
  * suggested as it's faster than a full Gaussian blur and looks close enough.
@@ -926,26 +947,71 @@ renderengine::RenderEngine::BlurAlgorithm chooseBlurAlgorithm(bool supportsBlur)
         return renderengine::RenderEngine::BlurAlgorithm::None;
     }
 
-    auto const algorithm = base::GetProperty(PROPERTY_DEBUG_RENDERENGINE_BLUR_ALGORITHM, "");
+    const bool persistEmpty =
+            base::GetProperty(PROPERTY_PERSIST_RENDERENGINE_BLUR_ALGORITHM, "").empty();
+    const bool debugEmpty = base::GetProperty(PROPERTY_DEBUG_RENDERENGINE_BLUR_ALGORITHM, "").empty();
+    const bool shouldPersistDefault = persistEmpty && debugEmpty;
+
+    // persist.sys.* (Settings) first; if unset, fall back to debug.* (adb / dev).
+    std::string algorithm = base::GetProperty(PROPERTY_PERSIST_RENDERENGINE_BLUR_ALGORITHM, "");
+    if (algorithm.empty()) {
+        algorithm = base::GetProperty(PROPERTY_DEBUG_RENDERENGINE_BLUR_ALGORITHM, "");
+    }
+
+    renderengine::RenderEngine::BlurAlgorithm chosen;
     if (algorithm == "gaussian") {
-        return renderengine::RenderEngine::BlurAlgorithm::Gaussian;
+        chosen = renderengine::RenderEngine::BlurAlgorithm::Gaussian;
     } else if (algorithm == "kawase") {
-        return renderengine::RenderEngine::BlurAlgorithm::Kawase;
+        chosen = renderengine::RenderEngine::BlurAlgorithm::Kawase;
     } else if (algorithm == "kawase2") {
-        return renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilter;
+        chosen = renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilter;
     } else if (algorithm == "kawase2_fix_aliasing") {
-        return renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilterV2;
+        chosen = renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilterV2;
     } else if (algorithm == "kawase_darkmoon") {
-        return renderengine::RenderEngine::BlurAlgorithm::KawaseDarkmoon;
+        chosen = renderengine::RenderEngine::BlurAlgorithm::KawaseDarkmoon;
     } else {
         if (FlagManager::getInstance().window_blur_kawase2()) {
             if (FlagManager::getInstance().window_blur_kawase2_fix_aliasing()) {
-                return renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilterV2;
+                chosen = renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilterV2;
             } else {
-                return renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilter;
+                chosen = renderengine::RenderEngine::BlurAlgorithm::KawaseDualFilter;
             }
+        } else {
+            chosen = renderengine::RenderEngine::BlurAlgorithm::Kawase;
         }
-        return renderengine::RenderEngine::BlurAlgorithm::Kawase;
+    }
+
+    if (shouldPersistDefault) {
+        if (const char* token = blurAlgorithmToPropertyToken(chosen)) {
+            base::SetProperty(PROPERTY_PERSIST_RENDERENGINE_BLUR_ALGORITHM, token);
+        }
+    }
+
+    return chosen;
+}
+
+static void fillSupportedBlurAlgorithmLists(bool supportsBlur,
+                                            std::vector<std::string>* outEnumLabels,
+                                            std::vector<std::string>* outPropertyTokens) {
+    if (!outEnumLabels || !outPropertyTokens) {
+        return;
+    }
+    outEnumLabels->clear();
+    outPropertyTokens->clear();
+    if (!supportsBlur) {
+        return;
+    }
+    using BA = renderengine::RenderEngine::BlurAlgorithm;
+    for (const auto algorithm : ftl::enum_range<BA>()) {
+        if (algorithm == BA::None) {
+            continue;
+        }
+        const char* token = blurAlgorithmToPropertyToken(algorithm);
+        if (!token) {
+            continue;
+        }
+        outEnumLabels->push_back(ftl::enum_string(algorithm));
+        outPropertyTokens->emplace_back(token);
     }
 }
 
@@ -2165,6 +2231,15 @@ status_t SurfaceFlinger::getProtectedContentSupport(bool* outSupported) const {
         return BAD_VALUE;
     }
     *outSupported = getRenderEngine().supportsProtectedContent();
+    return NO_ERROR;
+}
+
+status_t SurfaceFlinger::getSupportedBlurAlgorithms(std::vector<std::string>* outEnumLabels,
+                                                    std::vector<std::string>* outPropertyTokens) const {
+    if (!outEnumLabels || !outPropertyTokens) {
+        return BAD_VALUE;
+    }
+    fillSupportedBlurAlgorithmLists(mSupportsBlur, outEnumLabels, outPropertyTokens);
     return NO_ERROR;
 }
 
@@ -10052,6 +10127,12 @@ binder::Status SurfaceComposerAIDL::getDisplayedContentSample(const sp<IBinder>&
 
 binder::Status SurfaceComposerAIDL::getProtectedContentSupport(bool* outSupported) {
     status_t status = mFlinger->getProtectedContentSupport(outSupported);
+    return binderStatusFromStatusT(status);
+}
+
+binder::Status SurfaceComposerAIDL::getSupportedBlurAlgorithms(
+        std::vector<std::string>* outEnumLabels, std::vector<std::string>* outPropertyTokens) {
+    status_t status = mFlinger->getSupportedBlurAlgorithms(outEnumLabels, outPropertyTokens);
     return binderStatusFromStatusT(status);
 }
 

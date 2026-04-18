@@ -98,6 +98,25 @@ namespace {
 static const bool kPrintLayerSettings = false;
 static const bool kGaneshFlushAfterEveryLayer = kPrintLayerSettings;
 
+const char* blurAlgorithmToString(android::renderengine::RenderEngine::BlurAlgorithm algorithm) {
+    using BlurAlgorithm = android::renderengine::RenderEngine::BlurAlgorithm;
+    switch (algorithm) {
+        case BlurAlgorithm::None:
+            return "None";
+        case BlurAlgorithm::Gaussian:
+            return "Gaussian";
+        case BlurAlgorithm::Kawase:
+            return "Kawase";
+        case BlurAlgorithm::KawaseDualFilter:
+            return "KawaseDualFilter";
+        case BlurAlgorithm::KawaseDualFilterV2:
+            return "KawaseDualFilterV2";
+        case BlurAlgorithm::KawaseDarkmoon:
+            return "KawaseDarkmoon";
+    }
+    return "Unknown";
+}
+
 } // namespace
 
 // Utility functions related to SkRect
@@ -323,42 +342,38 @@ SkiaRenderEngine::SkiaRenderEngine(Threaded threaded, PixelFormat pixelFormat,
       : RenderEngine(threaded),
         mRuntimeEffectManager(RuntimeEffectManager(blurAlgorithm)),
         mBoxShadowUtils(mRuntimeEffectManager),
-        mDefaultPixelFormat(pixelFormat) {
-    // Note: do not introduce further switching on flags here, or within individual blur filters.
-    // BlurAlgorithm should be the only determining factor.
+        mDefaultPixelFormat(pixelFormat),
+        mBlurAlgorithm(blurAlgorithm) {
+
     switch (blurAlgorithm) {
         case BlurAlgorithm::None: {
-            ALOGD("Background Blurs Disabled");
             mBlurFilter = nullptr;
             break;
         }
         case BlurAlgorithm::Gaussian: {
-            ALOGD("Background Blurs Enabled (Gaussian algorithm)");
             mBlurFilter = new GaussianBlurFilter(mRuntimeEffectManager);
             break;
         }
         case BlurAlgorithm::Kawase: {
-            ALOGD("Background Blurs Enabled (Kawase algorithm)");
             mBlurFilter = new KawaseBlurFilter(mRuntimeEffectManager);
             break;
         }
         case BlurAlgorithm::KawaseDualFilter: {
-            ALOGD("Background Blurs Enabled (Kawase dual-filtering algorithm)");
             mBlurFilter = new KawaseBlurDualFilter(mRuntimeEffectManager);
             break;
         }
         case BlurAlgorithm::KawaseDualFilterV2: {
-            ALOGD("Background Blurs Enabled (Kawase dual-filtering V2 algorithm)");
             mBlurFilter = new KawaseBlurDualFilterV2(mRuntimeEffectManager);
             break;
         }
         case BlurAlgorithm::KawaseDarkmoon: {
-            ALOGD("Background Blurs Enabled (Kawase Darkmoon algorithm)");
             mBlurFilter = new KawaseDarkmoon(mRuntimeEffectManager);
             break;
         }
     }
 
+    ALOGD("SkiaRenderEngine background blur algorithm: %s",
+          blurAlgorithmToString(mBlurAlgorithm));
     mCapture = std::make_unique<SkiaCapture>();
 }
 
@@ -1498,6 +1513,9 @@ void SkiaRenderEngine::dump(std::string& result) {
     StringAppendF(&result, "RenderEngine supports protected context: %d\n",
                   supportsProtectedContent());
     StringAppendF(&result, "RenderEngine is in protected context: %d\n", mInProtectedContext);
+    StringAppendF(&result, "RenderEngine blur algorithm: %s\n",
+                  blurAlgorithmToString(mBlurAlgorithm));
+    StringAppendF(&result, "RenderEngine blur filter active: %d\n", mBlurFilter != nullptr);
     int shadersCachedSinceLastCall = 0;
     if (FlagManager::getInstance().shader_disk_cache()) {
         shadersCachedSinceLastCall = ShaderCache::get().shadersCachedSinceLastCall();

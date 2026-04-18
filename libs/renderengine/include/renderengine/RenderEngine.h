@@ -67,9 +67,14 @@
 #define PROPERTY_DEBUG_RENDERENGINE_CAPTURE_FILENAME "debug.renderengine.capture_filename"
 
 /**
- * Switches the cross-window background blur algorithm.
+ * Default blur algorithm override. Not persisted.
  */
 #define PROPERTY_DEBUG_RENDERENGINE_BLUR_ALGORITHM "debug.renderengine.blur_algorithm"
+
+/**
+ * Persisted blur algorithm override.
+ */
+#define PROPERTY_PERSIST_RENDERENGINE_BLUR_ALGORITHM "persist.sys.renderengine.blur_algorithm"
 
 /**
  * Allows recording of Skia drawing commands with systrace.

@@ -601,6 +601,8 @@ private:
     status_t getDisplayedContentSample(const sp<IBinder>& displayToken, uint64_t maxFrames,
                                        uint64_t timestamp, DisplayedFrameStats* outStats) const;
     status_t getProtectedContentSupport(bool* outSupported) const;
+    status_t getSupportedBlurAlgorithms(std::vector<std::string>* outEnumLabels,
+                                        std::vector<std::string>* outPropertyTokens) const;
     status_t isWideColorDisplay(const sp<IBinder>& displayToken, bool* outIsWideColorDisplay) const;
     status_t addRegionSamplingListener(const Rect& samplingArea, const sp<IBinder>& stopLayerHandle,
                                        const sp<IRegionSamplingListener>& listener);
@@ -1813,6 +1815,8 @@ public:
                                              int64_t timestamp,
                                              gui::DisplayedFrameStats* outStats) override;
     binder::Status getProtectedContentSupport(bool* outSupporte) override;
+    binder::Status getSupportedBlurAlgorithms(std::vector<std::string>* outEnumLabels,
+                                                std::vector<std::string>* outPropertyTokens) override;
     binder::Status isWideColorDisplay(const sp<IBinder>& token,
                                       bool* outIsWideColorDisplay) override;
     binder::Status addRegionSamplingListener(

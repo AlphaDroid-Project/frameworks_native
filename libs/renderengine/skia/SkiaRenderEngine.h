@@ -187,6 +187,7 @@ private:
     sk_sp<SkShader> localTonemap(sk_sp<SkShader>, float inputMultiplier, float targetHdrSdrRatio);
 
     const PixelFormat mDefaultPixelFormat;
+    const BlurAlgorithm mBlurAlgorithm;
 
     // Identifier used for various mappings of layers to various
     // textures or shaders

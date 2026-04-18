@@ -341,6 +341,13 @@ interface ISurfaceComposer {
     boolean getProtectedContentSupport();
 
     /**
+     * Returns supported RenderEngine blur algorithms as parallel lists of
+     * labels and property tokens.
+     */
+    void getSupportedBlurAlgorithms(out @utf8InCpp String[] outEnumLabels,
+            out @utf8InCpp String[] outPropertyTokens);
+
+    /**
      * Queries whether the given display is a wide color display.
      * Requires the ACCESS_SURFACE_FLINGER permission.
      */
