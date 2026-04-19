@@ -79,6 +79,7 @@
 #include "filters/GainmapFactory.h"
 #include "filters/GaussianBlurFilter.h"
 #include "filters/GlassBlurFilter.h"
+#include "filters/PyramidBlurFilter.h"
 #include "filters/KawaseBlurDualFilter.h"
 #include "filters/KawaseBlurDualFilterV2.h"
 #include "filters/KawaseBlurFilter.h"
@@ -116,6 +117,8 @@ const char* blurAlgorithmToString(android::renderengine::RenderEngine::BlurAlgor
             return "KawaseDarkmoon";
         case BlurAlgorithm::Glass:
             return "Glass";
+        case BlurAlgorithm::Pyramid:
+            return "Pyramid";
     }
     return "Unknown";
 }
@@ -375,6 +378,10 @@ SkiaRenderEngine::SkiaRenderEngine(Threaded threaded, PixelFormat pixelFormat,
         }
         case BlurAlgorithm::Glass: {
             mBlurFilter = new GlassBlurFilter(mRuntimeEffectManager);
+            break;
+        }
+        case BlurAlgorithm::Pyramid: {
+            mBlurFilter = new PyramidBlurFilter(mRuntimeEffectManager);
             break;
         }
     }

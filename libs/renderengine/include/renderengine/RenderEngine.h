@@ -167,9 +167,12 @@ public:
         KawaseDualFilter,
         KawaseDualFilterV2,
         KawaseDarkmoon,
+        /** AlphaDroid / Axion-style glass blur (Skia GlassBlurFilter). */
         Glass,
+        /** Multi-level half-res pyramid blur (linear down/up sampling). */
+        Pyramid,
 
-        ftl_last = Glass
+        ftl_last = Pyramid
     };
 
     static std::unique_ptr<RenderEngine> create(const RenderEngineCreationArgs& args);
