@@ -979,6 +979,16 @@ void SkiaRenderEngine::drawLayersInternal(
         if (mBlurFilter && layerHasBlur(layer, ctModifiesAlpha)) {
             std::unordered_map<uint32_t, sk_sp<SkImage>> cachedBlurs;
 
+            // Tracks whether any layer below the blur carries a buffer. A
+            // GraphicBuffer id is stable for the lifetime of the buffer object,
+            // but producers such as video players recycle a small buffer pool
+            // and write new content into the same buffer in place. The id (and
+            // geometry) therefore cannot detect those content updates, so the
+            // cross-frame cache must not be consulted when buffer-backed content
+            // is present below the blur. Only fully static scenes (solid-color
+            // or effect-only layers) are eligible for the cross-frame cache.
+            bool blurInputHasDynamicContent = false;
+
             auto computeBlurInputHash = [&]() -> uint64_t {
                 uint64_t h = 14695981039346656037ULL;
                 const auto mix = [&h](uint64_t v) {
@@ -994,6 +1004,7 @@ void SkiaRenderEngine::drawLayersInternal(
                     if (&l == &layer) break;
                     if (l.source.buffer.buffer) {
                         mix(l.source.buffer.buffer->getId());
+                        blurInputHasDynamicContent = true;
                     }
                     mixFloat(float(l.alpha));
                     const auto& m = l.geometry.positionTransform;
@@ -1091,18 +1102,25 @@ void SkiaRenderEngine::drawLayersInternal(
                         (layer.backgroundBlurRadius > 0 || !layer.blurRegions.empty())
                                 ? computeBlurInputHash()
                                 : 0;
+                // computeBlurInputHash sets blurInputHasDynamicContent as a side
+                // effect, so it must run before deciding cache eligibility.
+                const bool blurCacheEligible = !blurInputHasDynamicContent;
 
                 if (layer.backgroundBlurRadius > 0) {
                     SFTRACE_NAME("BackgroundBlur");
                     sk_sp<SkImage> blurredImage =
-                            lookupBlurCache(layer.backgroundBlurRadius, blurRectI,
-                                            blurInputHash);
+                            blurCacheEligible
+                                    ? lookupBlurCache(layer.backgroundBlurRadius, blurRectI,
+                                                      blurInputHash)
+                                    : nullptr;
                     if (!blurredImage) {
                         blurredImage =
                                 mBlurFilter->generate(context, layer.backgroundBlurRadius,
                                                       blurInput, blurRect);
-                        storeBlurCache(blurredImage, layer.backgroundBlurRadius, blurRectI,
-                                       blurInputHash);
+                        if (blurCacheEligible) {
+                            storeBlurCache(blurredImage, layer.backgroundBlurRadius, blurRectI,
+                                           blurInputHash);
+                        }
                     }
 
                     cachedBlurs[layer.backgroundBlurRadius] = blurredImage;
@@ -1117,12 +1135,17 @@ void SkiaRenderEngine::drawLayersInternal(
                     if (cachedBlurs[region.blurRadius] == nullptr) {
                         SFTRACE_NAME("BlurRegion");
                         sk_sp<SkImage> blurredImage =
-                                lookupBlurCache(region.blurRadius, blurRectI, blurInputHash);
+                                blurCacheEligible
+                                        ? lookupBlurCache(region.blurRadius, blurRectI,
+                                                          blurInputHash)
+                                        : nullptr;
                         if (!blurredImage) {
                             blurredImage = mBlurFilter->generate(context, region.blurRadius,
                                                                  blurInput, blurRect);
-                            storeBlurCache(blurredImage, region.blurRadius, blurRectI,
-                                           blurInputHash);
+                            if (blurCacheEligible) {
+                                storeBlurCache(blurredImage, region.blurRadius, blurRectI,
+                                               blurInputHash);
+                            }
                         }
                         cachedBlurs[region.blurRadius] = blurredImage;
                     }
