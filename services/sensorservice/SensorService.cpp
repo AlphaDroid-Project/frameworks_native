@@ -64,6 +64,7 @@
 #include "SensorDirectConnection.h"
 #include "SensorEventAckReceiver.h"
 #include "SensorEventConnection.h"
+#include "OplusFusionExt.h"
 #include "SensorFusion.h"
 #include "SensorInterface.h"
 #include "SensorRecord.h"
@@ -437,6 +438,11 @@ void SensorService::onFirstRef() {
                }
             }
 
+            // OPLUS fusion light sensor: register the content-immune
+            // "OPLUS Fusion Light Sensor Next Gen" (android.sensor.light) from the
+            // stock ext engine. No-op unless persist.alpha.fusion_light=1.
+            loadOplusFusionSensors(this, list, count);
+
             // Check if the device really supports batching by looking at the FIFO event
             // counts for each sensor.
             bool batchingSupported = false;
@@ -546,6 +552,28 @@ bool SensorService::registerSensor(std::shared_ptr<SensorInterface> s, bool isDe
         LOG_FATAL("Failed to register sensor with handle %d", handle);
         return false;
     }
+}
+
+// --- OPLUS fusion light ext callbacks (linked by libsensorserviceextimpl.so) ---
+bool SensorService::hasSensorRecord(int handle) {
+    Mutex::Autolock _l(mLock);
+    return mActiveSensors.indexOfKey(handle) >= 0;
+}
+
+void SensorService::onUidIdleForce(unsigned int uid) {
+    // Invoked by the engine's power-management path, not by fusion registration.
+    // Kept as a safe no-op for initial bring-up to avoid unintended side effects;
+    // wire to the real uid-idle handling once registration is validated.
+    ALOGV("onUidIdleForce(uid=%u)", uid);
+    (void)uid;
+}
+
+void SensorService::setSensorStateForTemporarily(int handle, bool shouldEnable) {
+    // Best-effort temporary enable/disable used by the engine's screen-state hooks.
+    // Not on the registration path; kept minimal for the initial bring-up.
+    ALOGV("setSensorStateForTemporarily(handle=%d, enable=%d)", handle, shouldEnable);
+    (void)handle;
+    (void)shouldEnable;
 }
 
 bool SensorService::registerDynamicSensorLocked(std::shared_ptr<SensorInterface> s, bool isDebug) {

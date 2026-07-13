@@ -36,6 +36,7 @@
 
 #include "AidlSensorHalWrapper.h"
 #include "HidlSensorHalWrapper.h"
+#include "OplusFusionExt.h"
 #include "android/hardware/sensors/2.0/types.h"
 #include "android/hardware/sensors/2.1/types.h"
 #include "convertV2_1.h"
@@ -466,6 +467,17 @@ void SensorDevice::autoDisable(void* ident, int handle) {
 
 status_t SensorDevice::activate(void* ident, int handle, int enabled) {
     if (mHalWrapper == nullptr) return NO_INIT;
+
+    // Drive the OPLUS fusion SensorDeviceExt hook, mirroring stock ColorOS's
+    // SensorDevice::activate. For the fusion light/RGB handles this starts (or
+    // stops) OplusFusionLightNextGen's CWB screenshot compensation monitor
+    // (activateInternal) — the screen-emission subtraction that makes the ALS
+    // content-immune. The engine filters by handle internally (no-op for every
+    // other sensor), so calling it unconditionally is safe. No-op entirely
+    // unless the fusion engine was loaded (persist.alpha.fusion_light=1).
+    if (oplusFusionActive()) {
+        oplusFusionActivate(handle, enabled != 0);
+    }
 
     Mutex::Autolock _l(mLock);
     return activateLocked(ident, handle, enabled);

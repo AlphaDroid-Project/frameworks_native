@@ -93,7 +93,7 @@ public:
     virtual void autoDisable(void *ident, int handle) override;
 };
 
-class VirtualSensor : public BaseSensor
+class __attribute__((visibility("default"))) VirtualSensor : public BaseSensor
 {
 public:
     VirtualSensor();
