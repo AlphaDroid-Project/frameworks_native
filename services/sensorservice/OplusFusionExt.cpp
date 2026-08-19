@@ -3,6 +3,7 @@
  */
 #undef LOG_TAG
 #define LOG_TAG "OplusFusionExt"
+#define DEBUG 0
 
 #include "OplusFusionExt.h"
 
@@ -132,7 +133,7 @@ void oplusFusionActivate(int handle, bool enabled) {
     // the meaningful calls so we can confirm the compensation trigger fires at runtime.
     int ret = reinterpret_cast<int (*)(void*, int, bool)>(
             vtableOf(gDeviceExt)[kDevExt_activateFusionSensor])(gDeviceExt, handle, enabled);
-    if (ret != -19) {
+    if (DEBUG && ret != -19) {
         ALOGI("fusion: activateFusionSensor(handle=0x%x, enabled=%d) -> %d "
               "(drove NextGen activateInternal / CWB screenshot monitor)",
               handle, enabled, ret);
